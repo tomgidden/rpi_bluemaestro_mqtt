@@ -1,0 +1,14 @@
+[Unit]
+Description=GidTech UGEEK Enviro-Pulse 2000 (Dockerized)
+After=network-online.target autofs.service docker.service
+
+[Service]
+ExecStart=/usr/bin/docker run --rm --device /dev/i2c-1 --name ugeek_cobber_to_mqtt tomgidden/rpi_ugeek_cobber_to_mqtt
+ExecStop=/usr/bin/docker rm -f ugeek_cobber_to_mqtt
+User=root
+Group=daemon
+SyslogIdentifier=ugeek_cobber_to_mqtt
+StandardOutput=syslog
+
+[Install]
+WantedBy=multi-user.target

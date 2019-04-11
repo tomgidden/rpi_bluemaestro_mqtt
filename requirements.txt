@@ -1,0 +1,7 @@
+paho-mqtt
+RPi.GPIO
+RPi.bme280
+smbus
+lockfile
+bme680
+apds9960
