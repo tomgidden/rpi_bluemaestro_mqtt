@@ -33,7 +33,7 @@ pressure_calibrate = 0
 temperature_calibrate = 0
 lux_calibrate = 0
 
-frequency = 10
+frequency = 3
 
 bus = smbus2.SMBus(1)
 
