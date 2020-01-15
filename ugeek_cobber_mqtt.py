@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-mqtt_host = '192.168.7.2'
+mqtt_host = '192.168.0.2'
 
 import paho.mqtt.client as paho
 
-import smbus2
-import bme280
+try:
+    from smbus2 import SMBus
+except ImportError:
+    from smbus import SMBus
 
+from bme280 import BME280
 from apds9960 import APDS9960
 from apds9960.const import *
 
@@ -26,7 +29,7 @@ exiting = None
 host = socket.gethostname()
 
 
-topic = '/sensor/{}'.format(host)
+topic = '/sensor/uk/CB29JW/inside'
 
 humidity_calibrate = 0
 pressure_calibrate = 0
@@ -34,8 +37,6 @@ temperature_calibrate = 0
 lux_calibrate = 0
 
 frequency = 3
-
-bus = smbus2.SMBus(1)
 
 def on_disconnect(mqtt, userdata, rc):
     print("Disconnected from MQTT server with code: %s" % rc)
@@ -65,48 +66,81 @@ try:
     mqtt.on_disconnect = on_disconnect
     mqtt.loop_start()
 
+    bus = SMBus(1)
+
     try:
         while exiting is None:
             try:
+                print ("Connecting")
+
                 i2c_lock()
                 bme_address = 0x77
                 apds_address = 0x39
 
-                bme_calibration_params = bme280.load_calibration_params(bus, bme_address)
-                apds = APDS9960(bus)
-                GPIO.setmode(GPIO.BOARD)
-                GPIO.setup(7, GPIO.IN)
-                #GPIO.add_event_detect(7, GPIO.FALLING, callback = intH)
-                apds.enableLightSensor()
+                apds = None
+                bme = None
+
+                try:
+                    GPIO.setmode(GPIO.BOARD)
+                    GPIO.setup(7, GPIO.IN)
+                    #GPIO.add_event_detect(7, GPIO.FALLING, callback = intH)
+
+                    apds = APDS9960(bus)
+                    apds.enableLightSensor()
+                    lux = apds.readAmbientLight()
+                except IOError as e:
+                    print (e)
+
+                try:
+                    bme = BME280(i2c_dev=bus, i2c_addr=bme_address)
+                    bme.update_sensor()
+                except IOError as e:
+                    print (e)
 
                 i2c_unlock()
 
+                time.sleep(frequency)
+
                 while exiting is None:
                     i2c_lock()
-                    bme_data = bme280.sample(bus, bme_address, bme_calibration_params)
-                    lux = apds.readAmbientLight()
 
                     mqtt.publish(topic + '/watchdog', 'reset', retain=False)
+ #                   print ("{}/watchdog: reset".format(topic))
+
                     now = time.time()
                     timestamp = int(now)
 
-                    short_delay = True
-                    if lux:
-                        lux = lux + lux_calibrate
-                        mqtt.publish(topic + '/luminosity', lux, retain=True)
-                        mqtt.publish(topic + '/luminosity/timestamp', timestamp, retain=True)
-                        #print("{} lux".format(lux))
-                        short_delay = False
+                    if apds is not None:
+                        try:
+                            short_delay = True
+                            lux = apds.readAmbientLight()
+                            if lux:
+                                lux = lux + lux_calibrate
+                                mqtt.publish(topic + '/luminosity', lux, retain=True)
+                                mqtt.publish(topic + '/luminosity/timestamp', timestamp, retain=True)
+#                                print("{} lux".format(lux))
+                                short_delay = False
+                        except IOError as e:
+                            print (e)
 
-                    if bme_data:
-                        mqtt.publish(topic + '/humidity', bme_data.humidity + humidity_calibrate, retain=True)
-                        mqtt.publish(topic + '/humidity/timestamp', timestamp, retain=True)
-                        mqtt.publish(topic + '/pressure', bme_data.pressure + pressure_calibrate, retain=True)
-                        mqtt.publish(topic + '/pressure/timestamp', timestamp, retain=True)
-                        mqtt.publish(topic + '/temperature', bme_data.temperature + temperature_calibrate, retain=True)
-                        mqtt.publish(topic + '/temperature/timestamp', timestamp, retain=True)
-                        #print("{}ºC\t{} %rH\t{} hPa".format(bme_data.temperature, bme_data.humidity, bme_data.pressure))
-                        short_delay = False
+
+                    if bme is not None:
+                        try:
+                            bme.update_sensor()
+
+
+                            bme_data = bme.__dict__
+
+                            mqtt.publish(topic + '/humidity', bme_data['humidity'], retain=True)
+                            mqtt.publish(topic + '/humidity/timestamp', timestamp, retain=True)
+                            mqtt.publish(topic + '/pressure', bme_data['pressure'], retain=True)
+                            mqtt.publish(topic + '/pressure/timestamp', timestamp, retain=True)
+                            mqtt.publish(topic + '/temperature', bme_data['temperature'], retain=True)
+                            mqtt.publish(topic + '/temperature/timestamp', timestamp, retain=True)
+#                            print("{}ºC\t{} %rH\t{} hPa".format(bme_data['temperature'], bme_data['humidity'], bme_data['pressure']))
+                            short_delay = False
+                        except IOError as e:
+                            print (e)
 
                     i2c_unlock()
 
@@ -116,7 +150,7 @@ try:
                         time.sleep(frequency)
 
             except IOError as e:
-                print("IOError: "+str(e))
+                print (e)
                 i2c_unlock()
                 time.sleep(3)
 

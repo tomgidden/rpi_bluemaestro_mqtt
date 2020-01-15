@@ -1,7 +1,10 @@
 paho-mqtt
 RPi.GPIO
-RPi.bme280
-smbus
+smbus2
 lockfile
-bme680
+pimoroni-bme280
 apds9960
+
+
+#bme680
+#RPi.bme280
