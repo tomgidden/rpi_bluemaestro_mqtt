@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-mqtt_host = 'mqtt.home'
+mqtt_host = os.environ['MQTT_HOST']
+topic = os.environ['MQTT_TOPIC']
+client_name = os.environ['MQTT_NAME']
 
 import paho.mqtt.client as paho
 import BlueMaestro
 import time
 import fcntl
+import os
 
-topic = '/sensor/uk/CB29JW/outside_bluemaestro'
 
 temperature_calibrate = 0
 frequency = 60
@@ -23,7 +25,8 @@ def on_disconnect(mqtt, userdata, rc):
             pass
         print("Reconnected to MQTT server.")
 
-mqtt = paho.Client('campi1')
+mqtt = paho.Client(client_name)
+
 mqtt.connect(mqtt_host, 1883, 60)
 mqtt.on_disconnect = on_disconnect
 mqtt.loop_start()
