@@ -1,10 +1,2 @@
 paho-mqtt
-RPi.GPIO
-smbus2
-lockfile
-pimoroni-bme280
-apds9960
-
-
-#bme680
-#RPi.bme280
+pybluez
