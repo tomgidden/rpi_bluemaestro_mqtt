@@ -17,4 +17,4 @@ RUN apt-get update -y && \
 
 COPY *.py /app/
 
-CMD ["/app/bluemaestro_mqtt.py"]
+CMD ["python", "/app/bluemaestro_mqtt.py"]

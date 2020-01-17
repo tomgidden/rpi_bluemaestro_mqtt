@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-mqtt_host = os.environ['MQTT_HOST']
-topic = os.environ['MQTT_TOPIC']
-client_name = os.environ['MQTT_NAME']
-
+import os
 import paho.mqtt.client as paho
 import BlueMaestro
 import time
 import fcntl
-import os
 
+mqtt_host = os.environ['MQTT_HOST']
+topic = os.environ['MQTT_TOPIC']
+client_name = os.environ['MQTT_CLIENT_NAME']
 
 temperature_calibrate = 0
 frequency = 60
+
+mqtt = paho.Client(client_name)
 
 def on_disconnect(mqtt, userdata, rc):
     print("Disconnected from MQTT server with code: %s" % rc)
@@ -25,10 +26,8 @@ def on_disconnect(mqtt, userdata, rc):
             pass
         print("Reconnected to MQTT server.")
 
-mqtt = paho.Client(client_name)
-
-mqtt.connect(mqtt_host, 1883, 60)
 mqtt.on_disconnect = on_disconnect
+mqtt.connect(mqtt_host, 1883, 60)
 mqtt.loop_start()
 
 try:
@@ -36,30 +35,26 @@ try:
         try:
             sensor = BlueMaestro.init()
             data = BlueMaestro.get(sensor)
-            print (data)
+
             if data is not None:
-                data['time'] = time.strftime('%Y-%m-%d %H:%M:%S')
 
                 now = time.time()
                 timestamp = int(now)
+
+                print (data)
+
                 mqtt.publish(topic + '/watchdog', 'reset', retain=False)
 
-                if 'humidity' in data:
-                    mqtt.publish(topic + '/humidity', data['humidity'], retain=True)
-                    mqtt.publish(topic + '/humidity/timestamp', timestamp, retain=True)
+                for k, v in data.items():
+                    mqtt.publish('{}/{}'.format(topic, k), v, retain=True)
+                    mqtt.publish('{}/{}/timestamp'.format(topic, k), timestamp, retain=True)
 
-                if 'pressure' in data:
-                    mqtt.publish(topic + '/pressure', data['pressure'], retain=True)
-                    mqtt.publish(topic + '/pressure/timestamp', timestamp, retain=True)
-
-                if 'temperature' in data:
-                    mqtt.publish(topic + '/temperature', data['temperature'] + temperature_calibrate, retain=True)
-                    mqtt.publish(topic + '/temperature/timestamp', timestamp, retain=True)
+                time.sleep(frequency)
 
             else:
                 print("No data yet.")
+                time.sleep(5)
 
-            time.sleep(frequency)
 
         except IOError as e:
             print("IOError: "+str(e))
