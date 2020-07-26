@@ -1,7 +1,7 @@
 TAG=tomgidden/rpi_bluemaestro_mqtt
-HOSTNAME=campi_outside
+HOSTNAME=campi
 NAME=rpi_bluemaestro_mqtt
-MQTT_TOPIC=/sensor/uk/CB29JW/bluemaestro
+MQTT_TOPIC=/sensor/uk/CB29JW
 MQTT_HOST=192.168.0.2
 
 build: Dockerfile *.py requirements.txt

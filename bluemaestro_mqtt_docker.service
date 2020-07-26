@@ -3,7 +3,7 @@ Description=GidTech BlueMaestro Enviro-Pulse 2000 (Dockerized)
 After=network-online.target autofs.service docker.service
 
 [Service]
-ExecStart=docker run --rm --hostname campi1_outside --env MQTT_TOPIC=/sensor/uk/CB29JW/bluemaestro --env MQTT_HOST=mqtt.home --env MQTT_CLIENT_NAME=campi1_outside --net host --name rpi_bluemaestro_mqtt tomgidden/rpi_bluemaestro_mqtt
+ExecStart=docker run --rm --hostname campi1 --env MQTT_TOPIC=/sensor/uk/CB29JW/bluemaestro --env MQTT_HOST=192.168.0.2 --env MQTT_CLIENT_NAME=campi1 --net host --name rpi_bluemaestro_mqtt tomgidden/rpi_bluemaestro_mqtt
 ExecStop=docker stop rpi_bluemaestro_mqtt
 ExecStopPost=docker rm rpi_bluemaestro_mqtt
 ExecReload=docker restart rpi_bluemaestro_mqtt

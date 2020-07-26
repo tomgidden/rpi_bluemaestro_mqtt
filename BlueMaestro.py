@@ -60,8 +60,8 @@ def init():
     hci_enable_le_scan(sock)
     return sock
 
-def get(sock):
-    return parse_events(sock)
+def get(sock, callback):
+    return parse_events(sock, callback)
 
 def returnnumberpacket(pkt):
     myInteger = 0
@@ -137,7 +137,7 @@ def hci_le_set_scan_parameters(sock):
     OWN_TYPE = SCAN_RANDOM
     SCAN_TYPE = 0x01
 
-def parse_events(sock, loop_count=100):
+def parse_events(sock, callback, loop_count=100):
     old_filter = sock.getsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, 14)
 
     # perform a device inquiry on bluetooth device #0
@@ -149,7 +149,7 @@ def parse_events(sock, loop_count=100):
     bluez.hci_filter_set_ptype(flt, bluez.HCI_EVENT_PKT)
     sock.setsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, flt )
     done = False
-    results = []
+    results = {}
     ret = {}
 
     for i in range(0, loop_count):
@@ -182,20 +182,34 @@ def parse_events(sock, loop_count=100):
                     if (DEBUG == True):
                         printpacket(pkt)
 
-                    if (company == "3301"):
+                    nm = returnstringpacket(pkt[report_pkt_offset+33:report_pkt_offset+33+8])
+
+                    if (company == "3301" or nm=='C481AF21' or nm=='C2E4EB1B'):
+
                         nameLength = int(pkt[report_pkt_offset + 32])
-                        ret['name'] = returnstringpacket(pkt[report_pkt_offset + 33:report_pkt_offset + (33+nameLength-1)])
+                        name = returnstringpacket(pkt[report_pkt_offset + 33:report_pkt_offset + (33+nameLength-1)])
+
+                        ret['make'] = company
+                        ret['model'] = pkt[report_pkt_offset+17]
+                        ret['name'] = name
 
                         ret["udid"] = returnhexpacket(pkt[report_pkt_offset + 22: report_pkt_offset - 6])
                         ret["mac"] = returnhexpacket(pkt[report_pkt_offset + 3: report_pkt_offset + 9])
 
-                        ret["temperature"] = float(returnnumberpacket(pkt[report_pkt_offset + 23:report_pkt_offset + 25]))/10
-                        ret["humidity"] = float(returnnumberpacket(pkt[report_pkt_offset + 25:report_pkt_offset + 27]))/10
-                        ret["dewpoint"] = float(returnnumberpacket(pkt[report_pkt_offset + 27:report_pkt_offset + 29]))/10
+                        if (ret['model'] == 27 ): # Purple
+                            ret["temperature"] = float(returnnumberpacket(pkt[report_pkt_offset + 23:report_pkt_offset + 25]))/10
+                            ret["humidity"] = float(returnnumberpacket(pkt[report_pkt_offset + 25:report_pkt_offset + 27]))/10
+                            ret["pressure"] = float(returnnumberpacket(pkt[report_pkt_offset + 27:report_pkt_offset + 29]))/10
+
+                        else: #if (ret['model'] == 23 ): # Blue
+                            ret["temperature"] = float(returnnumberpacket(pkt[report_pkt_offset + 23:report_pkt_offset + 25]))/10
+                            ret["humidity"] = float(returnnumberpacket(pkt[report_pkt_offset + 25:report_pkt_offset + 27]))/10
+                            ret["dewpoint"] = float(returnnumberpacket(pkt[report_pkt_offset + 27:report_pkt_offset + 29]))/10
+
 
                         ret["battery"] = float(float(returnnumberpacket(pkt[report_pkt_offset + 18:report_pkt_offset + 19]) / float(25500) ) * 100)
-                        sock.setsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, old_filter )
-                        return ret
+                        ret["data"] = pkt
+                        callback(ret)
 
     sock.setsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, old_filter )
-    return None
+    return results
